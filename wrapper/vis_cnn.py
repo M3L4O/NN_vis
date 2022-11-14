@@ -63,7 +63,7 @@ def get_hit_miss(image_gen, preds):
 
     return (
         {
-            "missies": misses_list,
+            "misses": misses_list,
             "misses_pred": misses_pred_class,
             "misses_true": misses_true_class,
         },
@@ -251,6 +251,8 @@ def make_gradCAM_vis(
             ax[1].imshow(images[j])
             ax[1].imshow(heatmap, cmap="jet", alpha=0.6)
             if len(labels[j]) > 1:
+                pass
+            else:
                 fig.suptitle(f"Predicted:{labels[j]}")
             plt.tight_layout()
 
