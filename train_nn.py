@@ -240,10 +240,11 @@ def main():
         model = tf.keras.models.load_model(f"./models_trained/{name}_fine.h5")
         test_ds.reset()
         score = model.evaluate(test_ds)
-        results.append((name, score[0], score[1]*100))
-    
+        results.append((name, score[0], score[1] * 100))
+
     results_df = pd.DataFrame(results, columns=["name", "loss", "accuracy"])
     results_df.to_csv("results.csv")
+
 
 if __name__ == "__main__":
     main()
