@@ -4,6 +4,7 @@ from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.applications.resnet50 import ResNet50
 from tensorflow.keras.applications.inception_v3 import InceptionV3
 from tensorflow.keras.applications.xception import Xception
+from tf.keras.applications import VGG19
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 from tensorflow.keras import backend as K
@@ -229,13 +230,20 @@ def train(
 
 
 def main():
-    models = []
-    model_names = []
+    models = [ResNet50, InceptionV3, Xception, VGG19]
+    model_names = ["ResNet50", "InceptionV3", "Xception", "VGG19"]
     df = pd.read_csv("metadados.csv")
+    results = []
     train_ds, validation_ds, test_ds = get_data_iterator(df)
     for model, name in zip(models, model_names):
         train(model, name, "./models_trained", train_ds, validation_ds)
-
+        model = tf.keras.models.load_model(f"./models_trained/{name}_fine.h5")
+        test_ds.reset()
+        score = model.evaluate(test_ds)
+        results.append((name, score[0], score[1]*100))
+    
+    results_df = pd.DataFrame(results, columns=["name", "loss", "accuracy"])
+    results_df.to_csv("results.csv")
 
 if __name__ == "__main__":
     main()
