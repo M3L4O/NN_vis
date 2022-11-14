@@ -51,7 +51,7 @@ def get_hit_miss(image_gen, preds):
     hit_pred_class = []
 
     for i, p in enumerate(preds):
-        pred_index = np.argmax(p)
+        pred_index = np.around(p[0])
         true_index = labels[i]
         if pred_index != true_index:
             misses_list.append(file_paths[i])
