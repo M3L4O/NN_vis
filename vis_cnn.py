@@ -3,23 +3,24 @@ from tensorflow.keras import backend as K
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.models import Model, load_model, model_from_json
 import tensorflow as tf
+import pandas as pd
+import numpy as np
 
-
-from skimage.segmentation import felzenszwalb, slic, mark_boundaries
+# Lime libs
 from lime import lime_image
+from skimage.segmentation import felzenszwalb, slic, mark_boundaries
+
+# GradCAM libs
 from tf_keras_vis.saliency import Saliency
 from tf_keras_vis.utils.model_modifiers import ReplaceToLinear
-from tf_keras_vis.utils.scores import CategoricalScore
+from tf_keras_vis.utils.scores import CategoricalScore, BinaryScore
 from tf_keras_vis.gradcam_plus_plus import GradcamPlusPlus
+
+# Plot libs
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import numpy as np
-import pandas as pd
-
-from matplotlib.pyplot import imshow
 import seaborn as sns
-from sklearn.metrics import confusion_matrix, classification_report
 
 
 def get_hit_miss(image_gen, preds):
@@ -111,6 +112,7 @@ def make_lime_vis(
     explainer=None,
     per_batch=None,
     segmentation_fn=None,
+    prefix="Lime",
     out_dir=None,
 ):
     """
@@ -132,6 +134,9 @@ def make_lime_vis(
 
         segmentation_fn: function
             Função de segmentação a ser utilizada na explicação.
+
+        prefix: str
+            Nome que será colocado antes do nome da instância ao salvar
 
         out_dir:
             Diretório onde será armazenado as explicações.
@@ -180,7 +185,7 @@ def make_lime_vis(
 
             plt.tight_layout()
             fig.savefig(
-                f"./{out_dir}/LIME_{vis_ds.filenames[i*vis_ds['batch_size']+j]}"
+                f"./{out_dir}/{prefix}_{vis_ds.filenames[i*vis_ds['batch_size']+j]}"
             )
             plt.close(fig)
 
@@ -188,8 +193,10 @@ def make_lime_vis(
 def make_gradCAM_vis(
     vis_ds,
     model,
+    score="binary",
     gradcam=None,
     per_batch=None,
+    prefix="GradCAM",
     out_dir=None,
 ):
     """
@@ -209,6 +216,9 @@ def make_gradCAM_vis(
         per_batch: int
             Quantidade de explicações a serem geradas por batch.
 
+        prefix: str
+            Nome que será colocado antes do nome da instância ao salvar
+
         out_dir:
             Diretório onde será armazenado as explicações.
     """
@@ -220,7 +230,11 @@ def make_gradCAM_vis(
 
     for i in range(len(vis_ds)):
         images, labels = vis_ds.next()
-        score = CategoricalScore(list(labels))
+        if score == "binary":
+            score = BinaryScore(list(labels))
+        else:
+            score = CategoricalScore(list(labels))
+
         cam = gradcam(score, images)
         for j in range(per_batch):
             heatmap = np.uint8(cm.jet(cam[j])[..., :3] * 255)
@@ -232,7 +246,5 @@ def make_gradCAM_vis(
                 fig.suptitle(f"Predicted:{labels[j]}")
             plt.tight_layout()
 
-            fig.savefig(
-                f"./{out_dir}/LIME_{vis_ds.filenames[i*vis_ds['batch_size']+j]}"
-            )
+            fig.savefig(f"./{out_dir}/{vis_ds.filenames[i*vis_ds['batch_size']+j]}")
             plt.close(fig)
