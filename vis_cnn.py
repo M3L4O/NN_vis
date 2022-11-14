@@ -227,11 +227,11 @@ def make_gradCAM_vis(
             fig, ax = plt.subplots(1, 2, figsize=(8, 8))
             ax[0].imshow(images[j])
             ax[1].imshow(images[j])
-            img = ax[1].imshow(heatmap, cmap="jet", alpha=0.6)
+            ax[1].imshow(heatmap, cmap="jet", alpha=0.6)
             if len(labels[j]) > 1:
                 fig.suptitle(f"Predicted:{labels[j]}")
             plt.tight_layout()
-            
+
             fig.savefig(
                 f"./{out_dir}/LIME_{vis_ds.filenames[i*vis_ds['batch_size']+j]}"
             )
