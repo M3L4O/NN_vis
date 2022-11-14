@@ -76,7 +76,7 @@ def get_hit_miss(image_gen, preds):
 
 def get_data_iterator(df, img_size=(224, 224), mode="binary"):
     """
-    Função utilizada para pegar os erros e acertos das predições.
+    Função utilizada para gerar um DataFrameIterator com as instâncias a serem explicadas.
 
     Parametros
     ----------
@@ -116,7 +116,7 @@ def make_lime_vis(
     out_dir=None,
 ):
     """
-    Função utilizada para pegar os erros e acertos das predições.
+    Função utilizada para gerar explicações usando LIME.
 
     Parametros
     ----------
@@ -200,7 +200,7 @@ def make_gradCAM_vis(
     out_dir=None,
 ):
     """
-    Função utilizada para pegar os erros e acertos das predições.
+    Função utilizada para gerar explicações usando GradCAM.
 
     Parametros
     ----------
