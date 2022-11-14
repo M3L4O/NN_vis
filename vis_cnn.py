@@ -123,7 +123,7 @@ def make_lime_vis(
 
         predict_fn: function
             Função utilizada para classificar as instâncias.
-        
+
         explainer: LimeImageExplainer
             Objeto para gerar explicações.
 
@@ -132,7 +132,7 @@ def make_lime_vis(
 
         segmentation_fn: function
             Função de segmentação a ser utilizada na explicação.
-        
+
         out_dir:
             Diretório onde será armazenado as explicações.
     """
@@ -147,11 +147,11 @@ def make_lime_vis(
     if segmentation_fn is None:
         segmentation_fn = lambda x: felzenszwalb(x, scale=50, sigma=0.5, min_size=50)
 
-    for j in range(len(vis_ds)):
+    for i in range(len(vis_ds)):
         images, labels = vis_ds.next()
-        for i in range(per_batch):
+        for j in range(per_batch):
             explanation = explainer.explain_instance(
-                images[i],
+                images[j],
                 predict_fn,
                 top_labels=5,
                 hide_color=0,
@@ -165,19 +165,74 @@ def make_lime_vis(
 
             fig, ax = plt.subplots(1, 2, figsize=(8, 8))
 
-            ax[0].imshow(mark_boundaries(images[i], explanation.segments))
+            ax[0].imshow(mark_boundaries(images[j], explanation.segments))
             img = ax[1].imshow(
                 heatmap, cmap="RdBu", vmin=-heatmap.max(), vmax=heatmap.max()
             )
             divider = make_axes_locatable(ax[1])
             cax = divider.append_axes("right", size="5%", pad=0.15)
             fig.colorbar(img, cax=cax)
-            if len(labels[i]) == 2:
+            if len(labels[j]) == 2:
                 pass
                 # fig.suptitle(f"Expected:{} Predicted:{}")
             else:
-                fig.suptitle(f"Predicted:{map_class[labels[i]]}")
+                fig.suptitle(f"Predicted:{map_class[labels[j]]}")
 
             plt.tight_layout()
-            fig.savefig(f"./{out_dir}/LIME_{vis_ds.filenames[j*vis_ds['batch_size']+i]}")
+            fig.savefig(
+                f"./{out_dir}/LIME_{vis_ds.filenames[i*vis_ds['batch_size']+j]}"
+            )
+            plt.close(fig)
+
+
+def make_gradCAM_vis(
+    vis_ds,
+    model,
+    gradcam=None,
+    per_batch=None,
+    out_dir=None,
+):
+    """
+    Função utilizada para pegar os erros e acertos das predições.
+
+    Parametros
+    ----------
+        vis_ds: DirectoryIterator, DataFrameIterator
+            Iterador das instâncias a serem explicadas.
+
+        model: tf.keras.Model
+            Modelo treinado a ser explicado
+
+        gradcam: GradcamPlusPlus
+            Gerador das explicações
+
+        per_batch: int
+            Quantidade de explicações a serem geradas por batch.
+
+        out_dir:
+            Diretório onde será armazenado as explicações.
+    """
+    if per_batch is None:
+        per_batch = vis_ds["batch_size"]
+
+    if gradcam is None:
+        gradcam = GradcamPlusPlus(model, model_modifier=ReplaceToLinear(), clone=True)
+
+    for i in range(len(vis_ds)):
+        images, labels = vis_ds.next()
+        score = CategoricalScore(list(labels))
+        cam = gradcam(score, images)
+        for j in range(per_batch):
+            heatmap = np.uint8(cm.jet(cam[j])[..., :3] * 255)
+            fig, ax = plt.subplots(1, 2, figsize=(8, 8))
+            ax[0].imshow(images[j])
+            ax[1].imshow(images[j])
+            img = ax[1].imshow(heatmap, cmap="jet", alpha=0.6)
+            if len(labels[j]) > 1:
+                fig.suptitle(f"Predicted:{labels[j]}")
+            plt.tight_layout()
+            
+            fig.savefig(
+                f"./{out_dir}/LIME_{vis_ds.filenames[i*vis_ds['batch_size']+j]}"
+            )
             plt.close(fig)
