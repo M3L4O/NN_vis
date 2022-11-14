@@ -10,6 +10,8 @@ from tensorflow.keras import backend as K
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 from sklearn.model_selection import train_test_split
+import pandas as pd
+import numpy as np
 
 
 def get_data_iterator(df, img_size=(224, 224), batch_size=32, mode="binary"):
@@ -99,6 +101,7 @@ def get_model(model_class):
     keras.Model
         Modelo pronto para ser treinado.
     """
+
     METRICS = [
         tf.keras.metrics.TruePositives(name="tp"),
         tf.keras.metrics.FalsePositives(name="fp"),
@@ -124,3 +127,115 @@ def get_model(model_class):
     model.compile(optimizer="adam", loss="binary_crossentropy", metrics=METRICS)
 
     return model
+
+
+def train(
+    model,
+    model_name,
+    model_dir,
+    train_ds,
+    validation_ds,
+    epochs=1000,
+    batch_size=32,
+):
+    """
+    Função utilizada para treinar os modelos.
+
+    Parametros
+    ----------
+        model : keras.Model
+            Modelo no ponto de ser treinado.
+
+        model_name : str
+            Nome do modelo.
+
+        model_dir : str
+            Caminho até o diretório que irá armazenar os modelos treinados.
+
+        train_ds: DataFrameIterator
+            Iterator contendo as instâncias para o treinamento.
+
+        validation_ds : DataFrameIterator
+            Iterator contendo as instâncias para a validação.
+
+        epochs : int
+            Quantidade de épocas máximas por treino.
+
+        batch_size: int
+            Tamanho do batch.
+
+    """
+
+    train_ds.reset()
+    validation_ds.reset()
+
+    checkpoint = ModelCheckpoint(
+        filepath=f"{model_dir}/{model_name}.h5",
+        monitor="loss",
+        verbose=1,
+        save_best_only=True,
+        save_weights_only=False,
+        mode="auto",
+        period=1,
+    )
+
+    early = EarlyStopping(
+        monitor="loss",
+        min_delta=0,
+        patience=20,
+        verbose=1,
+        mode="auto",
+    )
+
+    model.fit(
+        train_ds,
+        steps_per_epoch=train_ds.n // batch_size,
+        epochs=epochs,
+        validation_data=validation_ds,
+        validation_steps=validation_ds.n // batch_size,
+        callbacks=[checkpoint, early],
+    )
+
+    model = tf.keras.models.load_model(f"{model_dir}/{model_name}.h5")
+
+    train_ds.reset()
+    validation_ds.reset()
+
+    model.compile(
+        optimizer=keras.optimizers.Adam(1e-5),
+        loss="binary_crossentropy",
+        metrics=["binary_accuracy"],
+    )
+
+    model.trainable = True
+    checkpoint = ModelCheckpoint(
+        filepath=f"{model_dir}/{model_name}_fine.h5",
+        monitor="loss",
+        verbose=1,
+        save_best_only=True,
+        save_weights_only=False,
+        mode="auto",
+        period=1,
+    )
+
+    model.fit(
+        train_ds,
+        steps_per_epoch=train_ds.n // batch_size,
+        epochs=epochs,
+        validation_data=validation_ds,
+        validation_steps=validation_ds.n // batch_size,
+        callbacks=[checkpoint, early],
+    )
+
+
+def main():
+    models = []
+    model_names = []
+    df = pd.read_csv("metadados.csv")
+    train_ds, validation_ds, test_ds = get_data_iterator(df)
+    for model, name in zip(models, model_names):
+        train(model, name, "./models_trained", train_ds, validation_ds)
+
+
+if __name__ == "__main__":
+    main()
