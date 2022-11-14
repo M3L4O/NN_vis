@@ -41,7 +41,7 @@ def get_hit_miss(image_gen, preds):
         Outro dicionário contendo todos os acertos
     """
 
-    labels = image_gen.labels
+    labels = image_gen.classes
     file_paths = image_gen.filepaths
     map_class = {v: k for k, v in image_gen.class_indices.items()}
     misses_list = []
@@ -231,7 +231,7 @@ def make_gradCAM_vis(
     """
 
     if per_batch is None:
-        per_batch = vis_ds["batch_size"]
+        per_batch = vis_ds.batch_size
 
     if gradcam is None:
         gradcam = GradcamPlusPlus(model, model_modifier=ReplaceToLinear(), clone=True)
@@ -256,5 +256,5 @@ def make_gradCAM_vis(
                 fig.suptitle(f"Predicted:{labels[j]}")
             plt.tight_layout()
 
-            fig.savefig(f"./{out_dir}/{vis_ds.filenames[i*vis_ds['batch_size']+j]}")
+            fig.savefig(f"./{out_dir}/{vis_ds.filenames[i*vis_ds.batch_size+j]}")
             plt.close(fig)
