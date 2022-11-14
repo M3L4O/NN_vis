@@ -74,6 +74,22 @@ def get_hit_miss(image_gen, preds):
 
 
 def get_data_iterator(df, img_size=(224, 224), mode="binary"):
+    """
+    Função utilizada para pegar os erros e acertos das predições.
+
+    Parametros
+    ----------
+        df : pd.DataFrame
+            DataFrame contendo as instâncias.
+        img_size : tuple
+            Tupla contendo as dimensões das imagens
+        mode: str
+            String contendo o class_mode para gerar o DataFrameIterator
+    Returns
+    -------
+        DataFrameIterator
+            Um iterador contendo tanto as instâncias.
+    """
     gen = ImageDataGenerator(rescale=1.0 / 255)
     ds = gen.flow_from_dataframe(
         df,
@@ -157,7 +173,8 @@ def make_lime_vis(
             cax = divider.append_axes("right", size="5%", pad=0.15)
             fig.colorbar(img, cax=cax)
             if len(labels[i]) == 2:
-                fig.suptitle(f"Expected:{} Predicted:{}")
+                pass
+                # fig.suptitle(f"Expected:{} Predicted:{}")
             else:
                 fig.suptitle(f"Predicted:{map_class[labels[i]]}")
 
