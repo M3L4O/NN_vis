@@ -154,7 +154,7 @@ def make_lime_vis(
         explainer = lime_image.LimeImageExplainer()
 
     if per_batch is None:
-        per_batch = vis_ds["batch_size"]
+        per_batch = vis_ds.batch_size
 
     if segmentation_fn is None:
         segmentation_fn = lambda x: felzenszwalb(x, scale=50, sigma=0.5, min_size=50)
@@ -184,15 +184,11 @@ def make_lime_vis(
             divider = make_axes_locatable(ax[1])
             cax = divider.append_axes("right", size="5%", pad=0.15)
             fig.colorbar(img, cax=cax)
-            if len(labels[j]) == 2:
-                pass
-                # fig.suptitle(f"Expected:{} Predicted:{}")
-            else:
-                fig.suptitle(f"Predicted:{map_class[labels[j]]}")
+            fig.suptitle(f"Predicted:{map_class[labels[j]]}")
 
             plt.tight_layout()
             fig.savefig(
-                f"./{out_dir}/{prefix}_{vis_ds.filenames[i*vis_ds['batch_size']+j]}"
+                f"./{out_dir}/{prefix}_{vis_ds.filenames[i*vis_ds.batch_size+j].split('/')[-1].split('.')[0]}"
             )
             plt.close(fig)
 
@@ -250,11 +246,10 @@ def make_gradCAM_vis(
             ax[0].imshow(images[j])
             ax[1].imshow(images[j])
             ax[1].imshow(heatmap, cmap="jet", alpha=0.6)
-            if len(labels[j]) > 1:
-                pass
-            else:
-                fig.suptitle(f"Predicted:{labels[j]}")
-            plt.tight_layout()
 
-            fig.savefig(f"./{out_dir}/{vis_ds.filenames[i*vis_ds.batch_size+j]}")
+            fig.suptitle(f"Predicted:{labels[j]}")
+            plt.tight_layout()
+            fig.savefig(
+                f"./{out_dir}/{prefix}_{vis_ds.filenames[i*vis_ds.batch_size+j].split('/')[-1].split('.')[0]}"
+            )
             plt.close(fig)
