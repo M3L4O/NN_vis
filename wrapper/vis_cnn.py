@@ -161,11 +161,11 @@ def make_lime_vis(
 
     for i in range(len(vis_ds)):
         images, labels = vis_ds.next()
-        for j in range(per_batch):
+        for j in range(per_batch if per_batch <= len(images) else len(images)):
             explanation = explainer.explain_instance(
                 images[j],
                 predict_fn,
-                top_labels=5,
+                top_labels=2,
                 hide_color=0,
                 segmentation_fn=segmentation_fn,
                 num_samples=1000,
@@ -230,7 +230,7 @@ def make_gradCAM_vis(
         per_batch = vis_ds.batch_size
 
     if gradcam is None:
-        gradcam = GradcamPlusPlus(model, model_modifier=ReplaceToLinear(), clone=True)
+        gradcam = GradcamPlusPlus(model, clone=True)
 
     for i in range(len(vis_ds)):
         images, labels = vis_ds.next()
@@ -240,7 +240,7 @@ def make_gradCAM_vis(
             score = CategoricalScore(list(labels))
 
         cam = gradcam(score, images)
-        for j in range(per_batch):
+        for j in range(per_batch if per_batch <= len(images) else len(images)):
             heatmap = np.uint8(cm.jet(cam[j])[..., :3] * 255)
             fig, ax = plt.subplots(1, 2, figsize=(8, 8))
             ax[0].imshow(images[j])
