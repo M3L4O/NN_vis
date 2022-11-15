@@ -74,7 +74,7 @@ def get_hit_miss(image_gen, preds):
     )
 
 
-def get_data_iterator(df, batch_size=32, img_size=(224, 224), mode="binary"):
+def get_data_iterator(df, img_size=(224, 224), mode="binary"):
     """
     Função utilizada para gerar um DataFrameIterator com as instâncias a serem explicadas.
 
@@ -83,8 +83,6 @@ def get_data_iterator(df, batch_size=32, img_size=(224, 224), mode="binary"):
         df : pd.DataFrame
             DataFrame contendo as instâncias.
 
-        batch_size: int
-            Tamanho do batch;
 
         img_size : tuple
             Tupla contendo as dimensões das imagens
@@ -106,7 +104,7 @@ def get_data_iterator(df, batch_size=32, img_size=(224, 224), mode="binary"):
         class_mode=mode,
         color_mode="rgb",
         shuffle=False,
-        batch_size=batch_size,
+        batch_size=df.shape[0],
     )
 
     return ds
@@ -225,7 +223,7 @@ def make_gradCAM_vis(
         out_dir:
             Diretório onde será armazenado as explicações.
     """
-
+    map_class = {v: k for k, v in vis_ds.class_indices.items()}
     if per_batch is None:
         per_batch = vis_ds.batch_size
 
@@ -240,6 +238,7 @@ def make_gradCAM_vis(
             score = CategoricalScore(list(labels))
 
         cam = gradcam(score, images)
+
         for j in range(per_batch if per_batch <= len(images) else len(images)):
             heatmap = np.uint8(cm.jet(cam[j])[..., :3] * 255)
             fig, ax = plt.subplots(1, 2, figsize=(8, 8))
@@ -247,7 +246,7 @@ def make_gradCAM_vis(
             ax[1].imshow(images[j])
             ax[1].imshow(heatmap, cmap="jet", alpha=0.6)
 
-            fig.suptitle(f"Predicted:{labels[j]}")
+            fig.suptitle(f"Predicted:{map_class[labels[j]]}")
             plt.tight_layout()
             fig.savefig(
                 f"./{out_dir}/{prefix}_{vis_ds.filenames[i*vis_ds.batch_size+j].split('/')[-1].split('.')[0]}"
