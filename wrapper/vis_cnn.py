@@ -23,7 +23,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import seaborn as sns
 
 
-def get_hit_miss(image_gen, preds):
+def get_hit_miss(image_gen, preds, mode="binary"):
     """
     Função utilizada para pegar os erros e acertos das predições.
 
@@ -51,7 +51,11 @@ def get_hit_miss(image_gen, preds):
     hit_pred_class = []
 
     for i, p in enumerate(preds):
-        pred_index = 1 if p[0] >= 0.5 else 0
+        if mode == "binary":
+            pred_index = 1 if p[0] >= 0.5 else 0
+        else:
+            pred_index = np.argmax[p]
+
         true_index = labels[i]
         if pred_index != true_index:
             misses_list.append(file_paths[i])
@@ -63,13 +67,13 @@ def get_hit_miss(image_gen, preds):
 
     return (
         {
+            "hits": hit_list,
+            "hits_pred": hit_pred_class,
+        },
+        {
             "misses": misses_list,
             "misses_pred": misses_pred_class,
             "misses_true": misses_true_class,
-        },
-        {
-            "hits": hit_list,
-            "hits_pred": hit_pred_class,
         },
     )
 
@@ -82,7 +86,6 @@ def get_data_iterator(df, img_size=(224, 224), mode="binary"):
     ----------
         df : pd.DataFrame
             DataFrame contendo as instâncias.
-
 
         img_size : tuple
             Tupla contendo as dimensões das imagens
@@ -114,7 +117,7 @@ def make_lime_vis(
     vis_ds,
     predict_fn,
     explainer=None,
-    per_batch=None,
+    explanations=10,
     segmentation_fn=None,
     prefix="Lime",
     out_dir=None,
@@ -133,8 +136,7 @@ def make_lime_vis(
         explainer: LimeImageExplainer
             Objeto para gerar explicações.
 
-        per_batch: int
-            Quantidade de explicações a serem geradas por batch.
+
 
         segmentation_fn: function
             Função de segmentação a ser utilizada na explicação.
@@ -151,44 +153,43 @@ def make_lime_vis(
     if explainer is None:
         explainer = lime_image.LimeImageExplainer()
 
-    if per_batch is None:
-        per_batch = vis_ds.batch_size
-
     if segmentation_fn is None:
         segmentation_fn = lambda x: felzenszwalb(x, scale=50, sigma=0.5, min_size=50)
 
-    for i in range(len(vis_ds)):
-        images, labels = vis_ds.next()
-        for j in range(per_batch if per_batch <= len(images) else len(images)):
-            explanation = explainer.explain_instance(
-                images[j],
-                predict_fn,
-                top_labels=2,
-                hide_color=0,
-                segmentation_fn=segmentation_fn,
-                num_samples=1000,
-            )
+    images, labels = vis_ds.next()
 
-            ind = explanation.top_labels[0]
-            dict_heatmap = dict(explanation.local_exp[ind])
-            heatmap = np.vectorize(dict_heatmap.get)(explanation.segments)
+    explanations = explanations if explanations < len(images) else len(images)
 
-            fig, ax = plt.subplots(1, 2, figsize=(8, 8))
+    for j in range(explanations):
+        explanation = explainer.explain_instance(
+            images[j],
+            predict_fn,
+            top_labels=2,
+            hide_color=0,
+            segmentation_fn=segmentation_fn,
+            num_samples=1000,
+        )
 
-            ax[0].imshow(mark_boundaries(images[j], explanation.segments))
-            img = ax[1].imshow(
-                heatmap, cmap="RdBu", vmin=-heatmap.max(), vmax=heatmap.max()
-            )
-            divider = make_axes_locatable(ax[1])
-            cax = divider.append_axes("right", size="5%", pad=0.15)
-            fig.colorbar(img, cax=cax)
-            fig.suptitle(f"Predicted:{map_class[labels[j]]}")
+        ind = explanation.top_labels[0]
+        dict_heatmap = dict(explanation.local_exp[ind])
+        heatmap = np.vectorize(dict_heatmap.get)(explanation.segments)
 
-            plt.tight_layout()
-            fig.savefig(
-                f"./{out_dir}/{prefix}_{vis_ds.filenames[i*vis_ds.batch_size+j].split('/')[-1].split('.')[0]}"
-            )
-            plt.close(fig)
+        fig, ax = plt.subplots(1, 2, figsize=(8, 8))
+
+        ax[0].imshow(mark_boundaries(images[j], explanation.segments))
+        img = ax[1].imshow(
+            heatmap, cmap="RdBu", vmin=-heatmap.max(), vmax=heatmap.max()
+        )
+        divider = make_axes_locatable(ax[1])
+        cax = divider.append_axes("right", size="5%", pad=0.15)
+        fig.colorbar(img, cax=cax)
+        fig.suptitle(f"Predicted:{map_class[labels[j]]}")
+
+        plt.tight_layout()
+        fig.savefig(
+            f"./{out_dir}/{prefix}_{vis_ds.filenames[j].split('/')[-1].split('.')[0]}"
+        )
+        plt.close(fig)
 
 
 def make_gradCAM_vis(
@@ -196,7 +197,7 @@ def make_gradCAM_vis(
     model,
     score="binary",
     gradcam=None,
-    per_batch=None,
+    explanations=10,
     prefix="GradCAM",
     out_dir=None,
 ):
@@ -214,8 +215,8 @@ def make_gradCAM_vis(
         gradcam: GradcamPlusPlus
             Gerador das explicações
 
-        per_batch: int
-            Quantidade de explicações a serem geradas por batch.
+        explanations: int
+            Quantidade de explicações a serem geradas.
 
         prefix: str
             Nome que será colocado antes do nome da instância ao salvar
@@ -224,31 +225,32 @@ def make_gradCAM_vis(
             Diretório onde será armazenado as explicações.
     """
     map_class = {v: k for k, v in vis_ds.class_indices.items()}
-    if per_batch is None:
-        per_batch = vis_ds.batch_size
 
     if gradcam is None:
         gradcam = GradcamPlusPlus(model, clone=True)
 
-    for i in range(len(vis_ds)):
-        images, labels = vis_ds.next()
-        if score == "binary":
-            score = BinaryScore(list(labels))
-        else:
-            score = CategoricalScore(list(labels))
+    images, labels = vis_ds.next()
 
-        cam = gradcam(score, images)
+    explanations = explanations if explanations < len(images) else len(images)
 
-        for j in range(per_batch if per_batch <= len(images) else len(images)):
-            heatmap = np.uint8(cm.jet(cam[j])[..., :3] * 255)
-            fig, ax = plt.subplots(1, 2, figsize=(8, 8))
-            ax[0].imshow(images[j])
-            ax[1].imshow(images[j])
-            ax[1].imshow(heatmap, cmap="jet", alpha=0.6)
+    images, labels = images[:explanations], labels[:explanations]
+    if score == "binary":
+        score = BinaryScore(list(labels))
+    else:
+        score = CategoricalScore(list(labels))
 
-            fig.suptitle(f"Predicted:{map_class[labels[j]]}")
-            plt.tight_layout()
-            fig.savefig(
-                f"./{out_dir}/{prefix}_{vis_ds.filenames[i*vis_ds.batch_size+j].split('/')[-1].split('.')[0]}"
-            )
-            plt.close(fig)
+    cam = gradcam(score, images)
+
+    for j in range(explanations):
+        heatmap = np.uint8(cm.jet(cam[j])[..., :3] * 255)
+        fig, ax = plt.subplots(1, 2, figsize=(8, 8))
+        ax[0].imshow(images[j])
+        ax[1].imshow(images[j])
+        ax[1].imshow(heatmap, cmap="jet", alpha=0.6)
+
+        fig.suptitle(f"Predicted:{map_class[labels[j]]}")
+        plt.tight_layout()
+        fig.savefig(
+            f"./{out_dir}/{prefix}_{vis_ds.filenames[j].split('/')[-1].split('.')[0]}"
+        )
+        plt.close(fig)

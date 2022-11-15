@@ -22,14 +22,7 @@ def get_clean_df(filepath):
 
     """
     df = pd.read_csv(filepath)
-
-    del df["patient_id"]
-    del df["sex"]
-    del df["age_approx"]
-    del df["anatom_site_general_challenge"]
-    del df["diagnosis"]
-    del df["target"]
-
+    df = df[["image_name", "benign_malignant"]]
     columns = ["image", "label"]
     df.columns = columns
     df["image"] = df["image"].apply(lambda x: f"{filepath}/{x}.jpg")
