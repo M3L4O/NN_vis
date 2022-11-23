@@ -13,6 +13,22 @@ from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+
+
+def save_history(history, filename, output_dir):
+    plt.plot(history.history["val_loss"])
+    plt.title("Validation loss history")
+    plt.ylabel("Loss value")
+    plt.xlabel("No. epoch")
+    plt.savefig(f"{dir}\\{filename}_loss.png")
+
+    # Plot history: Accuracy
+    plt.plot(history.history["val_accuracy"])
+    plt.title("Validation accuracy history")
+    plt.ylabel("Accuracy value (%)")
+    plt.xlabel("No. epoch")
+    plt.savefig(f"{dir}\\{filename}_acc.png")
 
 
 def get_data_iterator(df, img_size=(224, 224), batch_size=32, mode="binary"):
@@ -131,9 +147,10 @@ def get_model(model_class):
 
 
 def train(
-    model,
+    model_class,
     model_name,
     model_dir,
+    history_dir,
     train_ds,
     validation_ds,
     epochs=1000,
@@ -144,7 +161,7 @@ def train(
 
     Parametros
     ----------
-        model : keras.Model
+        model_class : keras.Model
             Modelo no ponto de ser treinado.
 
         model_name : str
@@ -171,7 +188,7 @@ def train(
     validation_ds.reset()
 
     checkpoint = ModelCheckpoint(
-        filepath=f"{model_dir}/{model_name}.h5",
+        filepath=f"{model_dir}\\{model_name}.h5",
         monitor="loss",
         verbose=1,
         save_best_only=True,
@@ -183,12 +200,13 @@ def train(
     early = EarlyStopping(
         monitor="loss",
         min_delta=0,
-        patience=20,
+        patience=10,
         verbose=1,
         mode="auto",
     )
+    model = get_model(model_class)
 
-    model.fit(
+    history = model.fit(
         train_ds,
         steps_per_epoch=train_ds.n // batch_size,
         epochs=epochs,
@@ -197,7 +215,8 @@ def train(
         callbacks=[checkpoint, early],
     )
 
-    model = tf.keras.models.load_model(f"{model_dir}/{model_name}.h5")
+    save_history(history, filename=f"{model_name}_transfer", output_dir=history_dir)
+    model = tf.keras.models.load_model(f"{model_dir}\\{model_name}.h5")
 
     train_ds.reset()
     validation_ds.reset()
@@ -210,7 +229,7 @@ def train(
 
     model.trainable = True
     checkpoint = ModelCheckpoint(
-        filepath=f"{model_dir}/{model_name}_fine.h5",
+        filepath=f"{model_dir}\\{model_name}_fine.h5",
         monitor="loss",
         verbose=1,
         save_best_only=True,
@@ -219,7 +238,7 @@ def train(
         period=1,
     )
 
-    model.fit(
+    history = model.fit(
         train_ds,
         steps_per_epoch=train_ds.n // batch_size,
         epochs=epochs,
@@ -227,6 +246,7 @@ def train(
         validation_steps=validation_ds.n // batch_size,
         callbacks=[checkpoint, early],
     )
+    save_history(history, filename=f"{model_name}_fine", output_dir=history_dir)
 
 
 def main():
@@ -236,8 +256,8 @@ def main():
     results = []
     train_ds, validation_ds, test_ds = get_data_iterator(df)
     for model, name in zip(models, model_names):
-        train(model, name, "./models_trained", train_ds, validation_ds)
-        model = tf.keras.models.load_model(f"./models_trained/{name}_fine.h5")
+        train(model, name, "models_trained", "history", train_ds, validation_ds)
+        model = tf.keras.models.load_model(f"models_trained\\{name}_fine.h5")
         test_ds.reset()
         score = model.evaluate(test_ds)
         results.append((name, score[0], score[1] * 100))
