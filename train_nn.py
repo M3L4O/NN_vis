@@ -17,18 +17,35 @@ import matplotlib.pyplot as plt
 
 
 def save_history(history, filename, output_dir):
+    """
+    Função utilizada para gerar um DataFrameIterator para treinar o modelo
+
+    Parametros
+    ----------
+        history : pd.DataFrame
+            Histórico do treinamento do modelo.
+
+        filename: str
+            Nome da imagem a ser salva.
+
+        output_dir: str
+            Local onde as imagens serão salvas.
+
+        mode : str
+            Class mode utilizado no ImageDataGenerator.
+    """
+
     plt.plot(history.history["val_loss"])
     plt.title("Validation loss history")
     plt.ylabel("Loss value")
     plt.xlabel("No. epoch")
-    plt.savefig(f"{dir}\\{filename}_loss.png")
+    plt.savefig(f"{output_dir}\\{filename}_loss.png")
 
-    # Plot history: Accuracy
     plt.plot(history.history["val_accuracy"])
     plt.title("Validation accuracy history")
     plt.ylabel("Accuracy value (%)")
     plt.xlabel("No. epoch")
-    plt.savefig(f"{dir}\\{filename}_acc.png")
+    plt.savefig(f"{output_dir}\\{filename}_acc.png")
 
 
 def get_data_iterator(df, img_size=(224, 224), batch_size=32, mode="binary"):
