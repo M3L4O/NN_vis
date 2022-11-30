@@ -4,7 +4,7 @@ from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.applications.resnet50 import ResNet50
 from tensorflow.keras.applications.inception_v3 import InceptionV3
 from tensorflow.keras.applications.xception import Xception
-from tf.keras.applications import VGG19
+from tensorflow.keras.applications import VGG19
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Dense, GlobalAveragePooling2D
 from tensorflow.keras import backend as K
@@ -14,7 +14,7 @@ from sklearn.model_selection import train_test_split
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
+from tqdm.keras import TqdmCallback
 
 def save_history(history, filename, output_dir):
     """
@@ -210,7 +210,6 @@ def train(
         save_best_only=True,
         save_weights_only=False,
         mode="auto",
-        period=1,
     )
 
     early = EarlyStopping(
@@ -239,7 +238,8 @@ def train(
         epochs=epochs,
         validation_data=validation_ds,
         validation_steps=validation_ds.n // batch_size,
-        callbacks=[checkpoint, early],
+        verbose=0,
+        callbacks=[checkpoint, early,  TqdmCallback(verbose=1)],
     )
     save_history(history, filename=f"{model_name}_fine", output_dir=history_dir)
 
