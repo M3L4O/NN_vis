@@ -90,8 +90,8 @@ def get_data_iterator(df, img_size=(224, 224), batch_size=32, mode="binary"):
 
     train_ds = gen.flow_from_dataframe(
         train_df,
-        xcol="image",
-        ycol="label",
+        x_col="image",
+        y_col="label",
         target_size=img_size,
         class_mode=mode,
         shuffle=True,
@@ -100,8 +100,8 @@ def get_data_iterator(df, img_size=(224, 224), batch_size=32, mode="binary"):
 
     validation_ds = gen.flow_from_dataframe(
         validation_df,
-        xcol="image",
-        ycol="label",
+        x_col="image",
+        y_col="label",
         target_size=img_size,
         class_mode=mode,
         shuffle=True,
@@ -110,8 +110,8 @@ def get_data_iterator(df, img_size=(224, 224), batch_size=32, mode="binary"):
 
     test_ds = gen.flow_from_dataframe(
         test_df,
-        xcol="image",
-        ycol="label",
+        x_col="image",
+        y_col="label",
         target_size=img_size,
         class_mode=mode,
         shuffle=True,
@@ -150,7 +150,6 @@ def get_model(model_class):
     inputs = tf.keras.Input(shape=(224, 224, 3))
 
     base_model = model_class(include_top=False, weights="imagenet", input_tensor=inputs)
-    base_model.trainable = False
 
     gap = GlobalAveragePooling2D()(base_model.output)
 
@@ -170,7 +169,7 @@ def train(
     history_dir,
     train_ds,
     validation_ds,
-    epochs=1000,
+    epochs=120,
     batch_size=32,
 ):
     """
@@ -233,27 +232,6 @@ def train(
     )
 
     save_history(history, filename=f"{model_name}_transfer", output_dir=history_dir)
-    model = tf.keras.models.load_model(f"{model_dir}\\{model_name}.h5")
-
-    train_ds.reset()
-    validation_ds.reset()
-
-    model.compile(
-        optimizer=keras.optimizers.Adam(1e-5),
-        loss="binary_crossentropy",
-        metrics=["binary_accuracy"],
-    )
-
-    model.trainable = True
-    checkpoint = ModelCheckpoint(
-        filepath=f"{model_dir}\\{model_name}_fine.h5",
-        monitor="loss",
-        verbose=1,
-        save_best_only=True,
-        save_weights_only=False,
-        mode="auto",
-        period=1,
-    )
 
     history = model.fit(
         train_ds,
@@ -267,8 +245,8 @@ def train(
 
 
 def main():
-    models = [ResNet50, InceptionV3, Xception, VGG19]
-    model_names = ["ResNet50", "InceptionV3", "Xception", "VGG19"]
+    models = [InceptionV3, Xception, VGG19]
+    model_names = ["InceptionV3", "Xception", "VGG19"]
     df = pd.read_csv("metadados.csv")
     results = []
     train_ds, validation_ds, test_ds = get_data_iterator(df)
